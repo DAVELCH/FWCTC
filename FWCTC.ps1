@@ -5,6 +5,51 @@ $wasOnline = $false
 $connectionStartTime = $null
 $lastConnectionDuration = "N/A"
 
+# ==============================
+# CONFIGURACION ACCNAME 
+# ==============================
+$accname = "MEZQUI-JAL1092-NE40-X8A-CA"
+
+# ==============================
+# FUNCION: ACTIVAR PORTAL
+# ==============================
+function Activate-Portal {
+
+    $ip = (Get-NetIPAddress -AddressFamily IPv4 |
+           Where-Object { $_.IPAddress -like "10.*" } |
+           Select-Object -First 1 -ExpandProperty IPAddress)
+
+    if (-not $ip) { return }
+
+    $adapter = Get-NetAdapter |
+               Where-Object { $_.Status -eq "Up" -and $_.MacAddress } |
+               Select-Object -First 1
+
+    if (-not $adapter) { return }
+
+    $mac = $adapter.MacAddress
+
+    $url = "https://clubwifi.totalplay.com.mx/ClubMovil/inicio" +
+           "?wlanuserip=$ip" +
+           "&wlanacname=" +
+           "&wlanparameter=$mac" +
+           "&accname=$accname" +
+           "&type=DESKTOP" +
+           "&webView=false"
+
+    $headers = @{
+        "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36"
+    }
+
+    try {
+        Invoke-WebRequest $url -Headers $headers -TimeoutSec 8 -ErrorAction Stop | Out-Null
+    }
+    catch { }
+}
+
+# ==============================
+# LOOP PRINCIPAL
+# ==============================
 while ($true) {
 
     $now = Get-Date
@@ -30,12 +75,10 @@ while ($true) {
 
     # --- DETECCIÓN DE CAMBIO DE ESTADO ---
     if ($online -and -not $wasOnline) {
-        # Se acaba de conectar
         $connectionStartTime = Get-Date
     }
 
     if (-not $online -and $wasOnline -and $connectionStartTime) {
-        # Se acaba de desconectar
         $duration = (Get-Date) - $connectionStartTime
         $lastConnectionDuration = "$([int]$duration.TotalMinutes) min $([int]$duration.Seconds) seg"
         $connectionStartTime = $null
@@ -45,9 +88,9 @@ while ($true) {
 
     Clear-Host
 
-    Write-Host "=========================================" -ForegroundColor Cyan
-    Write-Host " DAVELCH'S FREE CLUB TOTALPLAY CONNECTOR " -ForegroundColor Cyan
-    Write-Host "=========================================" -ForegroundColor Cyan
+    Write-Host "===============================================" -ForegroundColor Cyan
+    Write-Host " DAVELCH'S FREE Wi-Fi CLUB TOTALPLAY CONNECTOR " -ForegroundColor Cyan
+    Write-Host "===============================================" -ForegroundColor Cyan
     Write-Host ""
     Write-Host "Hora: $($now.ToString('HH:mm:ss'))"
     Write-Host "IP Local: $ip"
@@ -55,7 +98,7 @@ while ($true) {
     Write-Host "Tiempo activo script: $([int]$uptime.TotalMinutes) min $([int]$uptime.Seconds) seg"
     Write-Host "Duracion ultima conexion: $lastConnectionDuration"
     Write-Host ""
-    Write-Host "-----------------------------------------"
+    Write-Host "-----------------------------------------------"
     Write-Host ""
 
     if ($online) {
@@ -67,17 +110,14 @@ while ($true) {
     else {
 
         Write-Host "STATUS: CONNECTING..." -ForegroundColor Red
-        Write-Host "Lanzando portal (msedge.exe) minimizado..."
+        Write-Host "Activando portal (modo limpio HTTPS)..."
 
-        Start-Process "msedge.exe" "http://10.1.1.1" -WindowStyle Minimized
+        Activate-Portal
 
-        Start-Sleep -Seconds 8
-
-        Write-Host "Cerrando msedge.exe..."
-        TASKKILL /F /IM msedge.exe | Out-Null
+        Start-Sleep -Seconds 1
 
         $reconnectCount++
     }
 
-    Start-Sleep -Seconds 2
+    Start-Sleep -Seconds 1
 }
