@@ -1,15 +1,20 @@
 $reconnectCount = 0
 $startTime = Get-Date
 
+$wasOnline = $false
+$connectionStartTime = $null
+$lastConnectionDuration = "N/A"
+
 while ($true) {
 
     $now = Get-Date
     $uptime = $now - $startTime
+
     $ip = (Get-NetIPAddress -AddressFamily IPv4 |
            Where-Object {$_.IPAddress -notlike "169.*" -and $_.IPAddress -ne "127.0.0.1"} |
            Select-Object -First 1 -ExpandProperty IPAddress)
 
-    # --- DETECCI�N REAL DE INTERNET ---
+    # --- DETECCIÓN REAL DE INTERNET (generate_204) ---
     try {
         $response = Invoke-WebRequest `
             -Uri "http://clients3.google.com/generate_204" `
@@ -23,6 +28,21 @@ while ($true) {
         $online = $false
     }
 
+    # --- DETECCIÓN DE CAMBIO DE ESTADO ---
+    if ($online -and -not $wasOnline) {
+        # Se acaba de conectar
+        $connectionStartTime = Get-Date
+    }
+
+    if (-not $online -and $wasOnline -and $connectionStartTime) {
+        # Se acaba de desconectar
+        $duration = (Get-Date) - $connectionStartTime
+        $lastConnectionDuration = "$([int]$duration.TotalMinutes) min $([int]$duration.Seconds) seg"
+        $connectionStartTime = $null
+    }
+
+    $wasOnline = $online
+
     Clear-Host
 
     Write-Host "=========================================" -ForegroundColor Cyan
@@ -33,6 +53,7 @@ while ($true) {
     Write-Host "IP Local: $ip"
     Write-Host "Reconexiones: $reconnectCount"
     Write-Host "Tiempo activo script: $([int]$uptime.TotalMinutes) min $([int]$uptime.Seconds) seg"
+    Write-Host "Duracion ultima conexion: $lastConnectionDuration"
     Write-Host ""
     Write-Host "-----------------------------------------"
     Write-Host ""
